@@ -1,6 +1,7 @@
 ﻿
 using Importer.Application.Interfaces;
 using Importer.Infrastructure.Configurations;
+using Importer.Infrastructure.Persistance;
 using Microsoft.Extensions.Configuration;
 using System.Data;
 using System.Text;
@@ -12,9 +13,10 @@ namespace Importer.Infrastructure.Reporting
     {
         private static readonly SemaphoreSlim _lock = new(1, 1);
         private readonly string _path;
+        private readonly Dictionary<int, string> _technicianNames;
+        private readonly Dictionary<int, string> _clientNames;
 
-
-        public CsvBatchReportWriter(IConfiguration configuration)
+        public CsvBatchReportWriter(IConfiguration configuration, IReferenceDataService referenceDataService)
         {
             string basePath = configuration.GetReportPath();
 
@@ -26,6 +28,21 @@ namespace Importer.Infrastructure.Reporting
             string filename = $"report_{timestamp}.csv";
 
             _path = Path.Combine(dir!, filename);
+            var nameToId = referenceDataService
+           .LoadTechniciansAsync()
+           .GetAwaiter()
+           .GetResult();
+
+            _technicianNames = nameToId
+                .ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
+
+            var clients = referenceDataService
+                .LoadClientsAsync()
+                .GetAwaiter()
+                .GetResult();
+
+            _clientNames = clients
+                .ToDictionary(c => c.Id, c => c.FullName);
         }
 
         public async Task WriteAsync(DataTable table, bool valid)
@@ -77,14 +94,29 @@ namespace Importer.Infrastructure.Reporting
                 return "";
             return "\"" + value.Replace("\"", "\"\"") + "\"";
         }
-        private static string BuildValidLine(string status, DataRow row)
-        {
-            var technician = Escape(GetValue(row, "TechnicianId"));
-            var client = Escape(GetValue(row, "ClientId"));
+        private  string BuildValidLine(string status, DataRow row)
+        {    
+            var techIdStr = GetValue(row, "TechnicianId");
+            var clientIdStr = GetValue(row, "ClientId");
+
+            string technicianDisplay = techIdStr;
+            if (int.TryParse(techIdStr, out var techId) &&
+                _technicianNames.TryGetValue(techId, out var techName))
+            {
+                technicianDisplay = techName;
+            }
+
+            string clientDisplay = clientIdStr;
+            if (int.TryParse(clientIdStr, out var clientId) &&
+                _clientNames.TryGetValue(clientId, out var clientName))
+            {
+                clientDisplay = clientName;
+            }
+
             var date = Escape(GetDateValue(row, "Date"));
             var total = Escape(GetValue(row, "Total"));
 
-            return $"{status},{technician},{client},{date},{total},,";
+            return $"{status},{Escape(technicianDisplay)},{Escape(clientDisplay)},{date},{total},,";
         }
 
         private static string BuildInvalidLine(string status, DataRow row)
