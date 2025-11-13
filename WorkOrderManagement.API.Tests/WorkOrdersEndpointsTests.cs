@@ -6,26 +6,17 @@ using WorkOrderManagement.API.Infrastructure;
 
 namespace WorkOrderManagement.API.Tests
 {
-    public class WorkOrdersEndpointsTests : IClassFixture<CustomWebApplicationFactory> //, IAsyncLifetime
+    public class WorkOrdersEndpointsTests : IClassFixture<CustomWebApplicationFactory> 
     {
 
         private readonly HttpClient _client;
-        //private readonly CustomWebApplicationFactory _factory;
 
         public WorkOrdersEndpointsTests(CustomWebApplicationFactory factory)
         {
-            //_factory = factory;
             _client = factory.CreateClient();
         }
 
 
-        //Task IAsyncLifetime.InitializeAsync()
-        //{
-        //    _factory.ResetAndSeed();
-        //    return Task.CompletedTask;
-        //}
-
-        //public Task DisposeAsync() => Task.CompletedTask;
 
         [Fact]
         public async Task Get_All_WorkOrders_Returns_All_WO()
@@ -45,10 +36,11 @@ namespace WorkOrderManagement.API.Tests
         public async Task Search_By_Technician_And_Client_Returns_Filtered_WorkOrders()
         {
 
-
+            //Act
             var response = await _client.GetAsync("/api/workorders/search?technicianId=1&clientId=1");
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
+            //Assert
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var items = await response.Content.ReadFromJsonAsync<List<WorkOrder>>();
             Assert.NotNull(items);
             Assert.Single(items);
