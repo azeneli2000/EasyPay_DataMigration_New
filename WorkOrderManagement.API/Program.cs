@@ -14,10 +14,20 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();   
+    using (var sc = app.Services.CreateScope())
+    {
+        var db1 = sc.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        if (db1.Database.IsRelational())
+        {
+            db.Database.Migrate();
+        }   
+    }
 }
 if (app.Environment.IsDevelopment())
 {
@@ -29,5 +39,5 @@ app. MapClientsEndpoints();
 app.MapTechniciansEndpoints();
 app.MapWorkOrdersEndpoints();
 app.Run();
-
+public partial class Program { }
 

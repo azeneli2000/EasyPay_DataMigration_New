@@ -77,8 +77,41 @@ namespace WorkOrderManagement.API.Features.WorkOrders
                 return Results.NoContent();
             });
 
+            group.MapGet("/search", async (
+                int? technicianId,
+                int? clientId,
+                DateTime? from,
+                DateTime? to,
+                AppDbContext db) =>
+            {
+                var query = db.WorkOrders
+                    .Include(w => w.Client)
+                    .Include(w => w.Technician)
+                    .AsQueryable();
+
+                if (technicianId.HasValue)
+                    query = query.Where(w => w.TechnicianId == technicianId.Value);
+
+                if (clientId.HasValue)
+                    query = query.Where(w => w.ClientId == clientId.Value);
+
+                if (from.HasValue)
+                    query = query.Where(w => w.Date >= from.Value);
+
+                if (to.HasValue)
+                    query = query.Where(w => w.Date <= to.Value);
+
+                var items = await query
+                    .OrderByDescending(w => w.Date)
+                    .ToListAsync();
+
+                return Results.Ok(items);
+            });
+
             return routes;
         }
+
+
     }
 
     public record CreateWorkOrderRequest(int TechnicianId, int ClientId, string? Information, DateTime Date, decimal Total);
